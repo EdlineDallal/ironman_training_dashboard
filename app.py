@@ -11,8 +11,8 @@ with col_title:
     st.markdown("<h1 style='margin: 0;'>IRONMAN 70.3 Training Board</h1>", unsafe_allow_html=True)
 
 # --- Load Data ---
-CSV_PATH = "/Users/ed9868/Downloads/workouts.csv"
-
+#CSV_PATH = "/Users/ed9868/Downloads/workouts.csv"
+#CSV_PATH = "workouts.csv"
 @st.cache_data
 def load_data(path):
     df = pd.read_csv(path)

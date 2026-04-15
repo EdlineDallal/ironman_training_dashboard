@@ -12,7 +12,7 @@ with col_title:
 
 # --- Load Data ---
 #CSV_PATH = "/Users/ed9868/Downloads/workouts.csv"
-#CSV_PATH = "workouts.csv"
+CSV_PATH = "workouts.csv"
 @st.cache_data
 def load_data(path):
     df = pd.read_csv(path)

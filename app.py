@@ -1,18 +1,21 @@
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-st.set_page_config(page_title="IM 70.3 Training Dashboard", layout="wide", page_icon="logo.png")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+st.set_page_config(page_title="IM 70.3 Training Dashboard", layout="wide", page_icon=os.path.join(BASE_DIR, "logo.png"))
 
 col_logo, col_title = st.columns([0.05, 0.95])
 with col_logo:
-    st.image("logo.png", width=55)
+    st.image(os.path.join(BASE_DIR, "logo.png"), width=55)
 with col_title:
     st.markdown("<h1 style='margin: 0;'>IRONMAN 70.3 Training Board</h1>", unsafe_allow_html=True)
 
 # --- Load Data ---
-#CSV_PATH = "/Users/ed9868/Downloads/workouts.csv"
-CSV_PATH = "workouts.csv"
+CSV_PATH = os.path.join(BASE_DIR, "workouts.csv")
 @st.cache_data
 def load_data(path):
     df = pd.read_csv(path)
@@ -54,23 +57,23 @@ def fmt_hhmm(h):
 # =====================================================================
 race_date = pd.Timestamp('2026-09-20')
 coach_plan = [
-    ('2026-05-31', '2026-06-06', 'Base 1 - Week 1', 12.25),
-    ('2026-06-07', '2026-06-13', 'Base 1 - Week 2', 7.25),
-    ('2026-06-14', '2026-06-20', 'Base 1 - Week 4', 10.75),
-    ('2026-06-21', '2026-06-27', 'Base 2 - Week 1', 13.0),
-    ('2026-06-28', '2026-07-04', 'Base 2 - Week 2', 7.25),
-    ('2026-07-05', '2026-07-11', 'Base 2 - Week 4', 11.75),
-    ('2026-07-12', '2026-07-18', 'Base 3 - Week 1', 13.75),
-    ('2026-07-19', '2026-07-25', 'Base 3 - Week 2', 15.25),
-    ('2026-07-26', '2026-08-01', 'Base 3 - Week 3', 7.25),
-    ('2026-08-02', '2026-08-08', 'Base 3 - Week 4', 13.0),
+    ('2026-05-31', '2026-06-06', 'Base 1 - Week 1', 10.25),
+    ('2026-06-07', '2026-06-13', 'Base 1 - Week 2', 12.25),
+    ('2026-06-14', '2026-06-20', 'Base 1 - Week 4', 7.25),
+    ('2026-06-21', '2026-06-27', 'Base 2 - Week 1', 10.75),
+    ('2026-06-28', '2026-07-04', 'Base 2 - Week 2', 13.0),
+    ('2026-07-05', '2026-07-11', 'Base 2 - Week 4', 7.25),
+    ('2026-07-12', '2026-07-18', 'Base 3 - Week 1', 11.75),
+    ('2026-07-19', '2026-07-25', 'Base 3 - Week 2', 13.75),
+    ('2026-07-26', '2026-08-01', 'Base 3 - Week 3', 15.25),
+    ('2026-08-02', '2026-08-08', 'Base 3 - Week 4', 7.25),
     ('2026-08-09', '2026-08-15', 'Build 1 - Week 1', 13.0),
-    ('2026-08-16', '2026-08-22', 'Build 1 - Week 2', 7.25),
-    ('2026-08-23', '2026-08-29', 'Build 1 - Week 4', 13.25),
+    ('2026-08-16', '2026-08-22', 'Build 1 - Week 2', 13.0),
+    ('2026-08-23', '2026-08-29', 'Build 1 - Week 4', 7.25),
     ('2026-08-30', '2026-09-05', 'Build 2 - Week 1', 12.25),
-    ('2026-09-06', '2026-09-12', 'Build 2 - Week 2', 7.25),
+    ('2026-09-06', '2026-09-12', 'Build 2 - Week 2', 12.25),
     ('2026-09-13', '2026-09-19', 'Build 2 - Week 4', 7.25),
-    ('2026-09-20', '2026-09-26', 'Race - 20/09', 0),
+    ('2026-09-20', '2026-09-26', 'Race - 20/09', 7.25),
 ]
 
 pre_rows = []
@@ -102,6 +105,16 @@ for _, row in df_plan.iterrows():
 df_plan['Planned (hrs)'] = planned_hrs
 df_plan['Completed (hrs)'] = completed_hrs
 df_plan['PhaseGroup'] = df_plan['Phase'].str.extract(r'^(Preparation|Base \d|Build \d|Race)')
+
+# Extras (non-SRB): Strength, Other, etc.
+df_actual_extras = df_actual[~df_actual['WorkoutType'].isin(['Swim', 'Run', 'Bike'])].copy()
+extras_planned, extras_completed = [], []
+for _, row in df_plan.iterrows():
+    mask = (df_actual_extras['WorkoutDay'] >= row['WeekStart']) & (df_actual_extras['WorkoutDay'] <= row['WeekEnd'])
+    extras_planned.append(round(df_actual_extras.loc[mask, 'PlannedDuration'].sum(), 2))
+    extras_completed.append(round(df_actual_extras.loc[mask, 'TimeTotalInHours'].sum(), 2))
+df_plan['Extras Planned'] = extras_planned
+df_plan['Extras Completed'] = extras_completed
 
 for sport in ['Swim', 'Run', 'Bike']:
     p_list, c_list = [], []
@@ -309,7 +322,8 @@ with tab4:
     fig_pmc.add_hline(y=0, line_dash='dash', line_color='gray', line_width=0.5)
     fig_pmc.update_layout(title='Performance Management Chart', xaxis_title='Date', yaxis_title='TSS / Load',
         template='plotly_white', height=500, hovermode='x unified',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0))
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0),
+        xaxis=dict(dtick=7*24*60*60*1000, tick0='2026-02-02', tickformat='%b %d\n%a'))
     st.plotly_chart(fig_pmc, use_container_width=True)
 
     # Weekly TSS line
@@ -318,15 +332,18 @@ with tab4:
     df_wtss['WeekStart'] = df_wtss['WorkoutDay'].dt.to_period('W-SUN').apply(lambda p: p.start_time)
     weekly_tss_plot = df_wtss.groupby('WeekStart')['TSS'].sum().round(0).reset_index()
     weekly_tss_plot.columns = ['WeekStart', 'TSS']
+    weekly_tss_plot = weekly_tss_plot.sort_values('WeekStart')
+    weekly_tss_plot['WeekLabel'] = weekly_tss_plot['WeekStart'].dt.strftime('%b %d') + ' - ' + (weekly_tss_plot['WeekStart'] + pd.Timedelta(days=6)).dt.strftime('%b %d')
 
     fig_wtss = go.Figure()
     fig_wtss.add_trace(go.Scatter(
-        x=weekly_tss_plot['WeekStart'], y=weekly_tss_plot['TSS'],
+        x=weekly_tss_plot['WeekLabel'], y=weekly_tss_plot['TSS'],
         mode='lines+markers+text', text=weekly_tss_plot['TSS'].astype(int).astype(str),
         textposition='top center', textfont=dict(size=9),
         line=dict(color='#e74c3c', width=2), marker=dict(size=8, color='#e74c3c')))
-    fig_wtss.update_layout(title='Weekly TSS (Monday–Sunday)', xaxis_title='Week Starting',
-        yaxis_title='Total TSS', template='plotly_white', height=400, hovermode='x unified')
+    fig_wtss.update_layout(title='Weekly TSS (Monday–Sunday)', xaxis_title='Week',
+        yaxis_title='Total TSS', template='plotly_white', height=400, hovermode='x unified',
+        xaxis=dict(tickangle=-45))
     st.plotly_chart(fig_wtss, use_container_width=True)
 
 # =====================================================================
@@ -358,7 +375,7 @@ with tab2:
     for _, row in df_plan.iterrows():
         month = row['WeekStart'].strftime('%B')
         if month != prev_month:
-            html_rows.append(f'<tr><td colspan="5" style="background:#2c3e50;color:#fff;font-weight:bold;padding:6px 10px;font-size:13px;">{month}</td></tr>')
+            html_rows.append(f'<tr><td colspan="8" style="background:#2c3e50;color:#fff;font-weight:bold;padding:6px 10px;font-size:13px;">{month}</td></tr>')
             prev_month = month
 
         phase = row['Phase']
@@ -367,7 +384,10 @@ with tab2:
         fg = period_text_colors.get(phase_group, '#333')
 
         coach_hrs = hrs_to_hhmm(row['CoachPlan'])
+        planned_hrs_val = hrs_to_hhmm(row['Planned (hrs)'])
         completed_hrs_val = hrs_to_hhmm(row['Completed (hrs)'])
+        extras_p = hrs_to_hhmm(row['Extras Planned'])
+        extras_c = hrs_to_hhmm(row['Extras Completed'])
         completed_style = 'font-weight:bold;' if row['Completed (hrs)'] > 0 else ''
 
         html_rows.append(f'''<tr>
@@ -375,7 +395,10 @@ with tab2:
             <td style="padding:5px 10px;border-bottom:1px solid #eee;text-align:center;">{row['WeeksToEvent']}</td>
             <td style="padding:5px 10px;border-bottom:1px solid #eee;background:{bg};color:{fg};font-weight:600;font-size:12px;white-space:nowrap;">{phase}</td>
             <td style="padding:5px 10px;border-bottom:1px solid #eee;text-align:center;">{coach_hrs}</td>
+            <td style="padding:5px 10px;border-bottom:1px solid #eee;text-align:center;">{planned_hrs_val}</td>
             <td style="padding:5px 10px;border-bottom:1px solid #eee;text-align:center;{completed_style}">{completed_hrs_val}</td>
+            <td style="padding:5px 10px;border-bottom:1px solid #eee;text-align:center;color:#888;">{extras_p}</td>
+            <td style="padding:5px 10px;border-bottom:1px solid #eee;text-align:center;color:#888;">{extras_c}</td>
         </tr>''')
 
     table_html = f'''
@@ -386,8 +409,11 @@ with tab2:
                 <th style="padding:8px 10px;text-align:left;">Week</th>
                 <th style="padding:8px 10px;text-align:center;">Weeks to Event</th>
                 <th style="padding:8px 10px;text-align:left;">Period</th>
-                <th style="padding:8px 10px;text-align:center;">Hours</th>
+                <th style="padding:8px 10px;text-align:center;">Coach Hours</th>
+                <th style="padding:8px 10px;text-align:center;">Planned</th>
                 <th style="padding:8px 10px;text-align:center;">Completed</th>
+                <th style="padding:8px 10px;text-align:center;">Extras Planned</th>
+                <th style="padding:8px 10px;text-align:center;">Extras Completed</th>
             </tr>
         </thead>
         <tbody>

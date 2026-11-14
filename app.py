@@ -1,6 +1,8 @@
 import os
 import io
 import zipfile
+import base64
+import gzip
 from analytics import prepare, pmc, weekly, compare_halves
 import streamlit as st
 import pandas as pd
@@ -13,6 +15,7 @@ st.set_page_config(page_title="IM 70.3 Training Dashboard", layout="wide", page_
 
 # --- Load Data ---
 CSV_PATH = os.path.join(BASE_DIR, "workouts.csv")
+LATEST_PATH = os.path.join(BASE_DIR, "workouts_latest.b64")
 upload = st.sidebar.file_uploader("Replace workouts export (CSV or ZIP)", type=["csv", "zip"])
 if upload is not None:
     content = upload.getvalue()
@@ -25,7 +28,13 @@ if upload is not None:
             content = archive.read(csv_names[0])
     data_source = io.BytesIO(content)
 else:
-    data_source = CSV_PATH
+    # The latest export is stored losslessly as gzip + base64 to preserve all
+    # TrainingPeaks CSV quoting, multiline descriptions, and Unicode.
+    if os.path.exists(LATEST_PATH):
+        with open(LATEST_PATH, "r", encoding="ascii") as latest_file:
+            data_source = io.BytesIO(gzip.decompress(base64.b64decode(latest_file.read().strip())))
+    else:
+        data_source = CSV_PATH
 try:
     raw_df = prepare(data_source)
 except Exception as err:
@@ -82,12 +91,17 @@ if week_options:
         format_func=lambda x: f"{x:%d %b %Y} – {(x+pd.Timedelta(days=6)):%d %b %Y}")
 else:
     w = None
+last_recorded_day = perf["WorkoutDay"].max() if not perf.empty else pd.NaT
+if pd.notna(last_recorded_day):
+    st.caption(f"📅 Analysis through {last_recorded_day:%d/%m/%Y}  ·  "
+               + ("Uploaded workout export" if upload is not None else "Latest saved TrainingPeaks export"))
 tab_week, tab_load, tab_perf = st.tabs([
     "📊 Weekly pulse", "💓 Load & recovery", "📈 Performance"
 ])
 
 with tab_week:
     if w is not None:
+        st.caption(f"Training week: {w:%d/%m/%Y} – {(w + pd.Timedelta(days=6)):%d/%m/%Y}")
         row = all_weeks.loc[w]
         p = all_weeks.loc[w-pd.Timedelta(days=7)] if w-pd.Timedelta(days=7) in all_weeks.index else None
         cols = st.columns(4)

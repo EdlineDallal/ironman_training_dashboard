@@ -38,15 +38,6 @@ all_weeks = weekly(perf)
 loads = pmc(perf)
 week_options = all_weeks.index.sort_values(ascending=False).tolist() if not all_weeks.empty else []
 
-perf = raw_df[raw_df.WorkoutDay.notna()].copy()
-all_weeks = weekly(perf)
-loads = pmc(perf)
-if not all_weeks.empty:
-    last_week = all_weeks.index.max()
-    week_options = all_weeks.index.sort_values(ascending=False).tolist()
-else:
-    week_options = []
-
 def report_insights(week_start):
     week_end = week_start + pd.Timedelta(days=6)
     wd = perf[perf.WorkoutDay.between(week_start, week_end)]

@@ -1,6 +1,6 @@
 # Triathlon Training Dashboard — November 2026 update
 
-Based on the existing `app.py` plus the charts in both `tracking_progress.ipynb` notebooks. Updated data from the uploaded TrainingPeaks ZIP export (2026-07-02 to 2026-11-14).
+Based on the existing `app.py` plus the charts in both `tracking_progress.ipynb` notebooks. The repository's original `workouts.csv` is retained for data integrity. Upload the latest TrainingPeaks ZIP export (2026-07-02 to 2026-11-14) in the Streamlit sidebar to analyze the newer data.
 
 ## Run locally
 
@@ -9,7 +9,7 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The dashboard reads `workouts.csv` by default. You can upload a later `workouts.csv` or an export ZIP in the sidebar; the upload replaces the display data for the current session, not the file on disk. To make it permanent replace the bundled `workouts.csv`.
+The dashboard reads the repository's existing `workouts.csv` by default. You can upload a later `workouts.csv` or an export ZIP in the sidebar; the upload replaces the display data for the current session, not the file on disk. To make it permanent replace the bundled `workouts.csv`.
 
 Use the separate `wellness.csv` template for Garmin/manual daily wellness data (HRV, resting HR, sleep hours, Body Battery, optional notes). The TrainingPeaks workout export does **not** contain those fields. The app offers an editable form and CSV export; download your changes to retain them, or replace `wellness.csv` on disk.
 

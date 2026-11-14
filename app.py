@@ -160,33 +160,55 @@ with tab_load:
         st.plotly_chart(chart,use_container_width=True)
         st.plotly_chart(go.Figure(data=[go.Bar(x=loads.index,y=loads.TSS,name='Recorded TSS')]).update_layout(title='Daily known TSS (missing TSS is not zero)',template='plotly_white'),use_container_width=True)
         st.warning(f"{int(loads.iloc[-7:].MissingTSS.sum())} unscored workouts in the past seven days. Treat fitness/form levels as indicative, not exact.")
-    with st.expander('Garmin / wellness diary (optional)'):
-        st.caption('The workouts export has no HRV, resting HR, sleep, or Body Battery. Upload a wellness CSV or enter values and download it to keep the changes.')
-        wellness_path=os.path.join(BASE_DIR,'wellness.csv')
-        wellness_up=st.file_uploader('Wellness CSV: Date, HRV, RestingHR, SleepHours, BodyBattery, Notes',type=['csv'],key='wellness_upload')
+    with st.expander("Garmin / wellness diary (optional)"):
+        st.caption("HRV, resting heart rate, sleep and Body Battery are not in the workout export. Record them separately.")
+        expected = ["Date", "HRV", "RestingHR", "SleepHours", "BodyBattery", "Notes"]
+        wellness_path = os.path.join(BASE_DIR, "wellness.csv")
+        wellness_up = st.file_uploader("Upload wellness CSV (optional)", type=["csv"], key="wellness_upload")
         try:
-            wellness=pd.read_csv(wellness_up if wellness_up is not None else wellness_path)
-        except Exception:
-            wellness=pd.DataFrame(columns=['Date','HRV','RestingHR','SleepHours','BodyBattery','Notes'])
-        expected=['Date','HRV','RestingHR','SleepHours','BodyBattery','Notes']
-        for field in expected:
-            if field not in wellness: wellness[field]=np.nan
-        new_w=st.data_editor(wellness[expected],num_rows='dynamic',use_container_width=True,key='wellness_editor')
-        st.download_button('Download wellness CSV',new_w.to_csv(index=False).encode('utf-8-sig'),file_name='wellness.csv',mime='text/csv')
-        if len(new_w):
-            wm=new_w.copy();wm['Date']=pd.to_datetime(wm.Date,errors='coerce')
-            for k in ['HRV','RestingHR','SleepHours','BodyBattery']:
-                wm[k]=pd.to_numeric(wm[k],errors='coerce')
-            wm=wm.dropna(subset=['Date']).sort_values('Date')
-            if not wm.empty:
-                fig=go.Figure()
-                for name in ['HRV','RestingHR','SleepHours','BodyBattery']:
-                    if wm[name].notna().any():fig.add_scatter(x=wm.Date,y=wm[name],mode='lines+markers',name=name)
-                fig.update_layout(template='plotly_white',title='Recovery trends (different units; compare each metric to its own baseline)')
-                st.plotly_chart(fig,use_container_width=True)
-                if len(wm)>=7:
-                    st.info('Check persistent changes relative to your individual baseline, alongside fatigue, subjective feeling and training load; a single reading is not decisive.')
-    
+            wellness = pd.read_csv(wellness_up if wellness_up is not None else wellness_path)
+        except (ValueError, FileNotFoundError, pd.errors.EmptyDataError):
+            wellness = pd.DataFrame(columns=expected)
+        wellness = wellness.reindex(columns=expected)
+        if "manual_wellness" not in st.session_state:
+            st.session_state["manual_wellness"] = []
+        with st.form("wellness_entry_form", clear_on_submit=True):
+            entry_cols = st.columns(2)
+            entry_date = entry_cols[0].date_input("Date", key="new_wellness_date")
+            entry_hrv = entry_cols[1].number_input("HRV (ms)", min_value=0.0, step=1.0, value=0.0)
+            entry_hr = entry_cols[0].number_input("Resting HR (bpm)", min_value=0.0, step=1.0, value=0.0)
+            entry_sleep = entry_cols[1].number_input("Sleep (hours)", min_value=0.0, max_value=24.0, step=0.25, value=0.0)
+            entry_bb = entry_cols[0].number_input("Body Battery", min_value=0, max_value=100, step=1, value=0)
+            entry_notes = st.text_input("Notes")
+            submitted = st.form_submit_button("Add wellness reading")
+        if submitted:
+            st.session_state["manual_wellness"].append({
+                "Date": entry_date.isoformat(),
+                "HRV": entry_hrv if entry_hrv else None,
+                "RestingHR": entry_hr if entry_hr else None,
+                "SleepHours": entry_sleep if entry_sleep else None,
+                "BodyBattery": entry_bb if entry_bb else None,
+                "Notes": entry_notes,
+            })
+            st.success("Reading added. Download the updated CSV to save it permanently.")
+        if st.session_state["manual_wellness"]:
+            wellness = pd.concat([wellness, pd.DataFrame(st.session_state["manual_wellness"])], ignore_index=True)
+        if not wellness.empty:
+            st.dataframe(wellness, hide_index=True, use_container_width=True)
+        st.download_button("Download wellness CSV", wellness.to_csv(index=False).encode("utf-8-sig"),
+                           file_name="wellness.csv", mime="text/csv", key="download_wellness")
+        wm = wellness.copy()
+        wm["Date"] = pd.to_datetime(wm["Date"], errors="coerce")
+        for metric in ["HRV", "RestingHR", "SleepHours", "BodyBattery"]:
+            wm[metric] = pd.to_numeric(wm[metric], errors="coerce")
+        wm = wm.dropna(subset=["Date"]).sort_values("Date")
+        if not wm.empty:
+            metric = st.selectbox("Recovery metric", ["HRV", "RestingHR", "SleepHours", "BodyBattery"])
+            if wm[metric].notna().any():
+                fig = go.Figure()
+                fig.add_scatter(x=wm["Date"], y=wm[metric], mode="lines+markers", name=metric)
+                fig.update_layout(title=f"{metric} trend", template="plotly_white", height=320)
+                st.plotly_chart(fig, use_container_width=True)
 
 with tab_perf:
     st.caption('Compare trends and inspect data quality')

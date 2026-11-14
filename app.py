@@ -112,8 +112,11 @@ with tab_week:
         cols[2].metric("Completed workouts", f"{int(row.Workouts-row.PossibleDuplicates)}")
         cols[3].metric("Missing TSS", f"{int(row.MissingTSS)}")
         sport_cols = st.columns(3)
-        for col, sport in zip(sport_cols, ["Swim","Bike","Run"]):
-            col.metric(f"{sport} distance",f"{row[sport+'Km']:.1f} km")
+        selected_week = perf[perf.WorkoutDay.between(w, w + pd.Timedelta(days=6))]
+        bike_hours = selected_week.loc[selected_week.WorkoutType.eq("Bike"), "AdjustedHours"].sum()
+        sport_cols[0].metric("Swim distance", f"{row.SwimKm:.1f} km")
+        sport_cols[1].metric("Bike hours", f"{bike_hours:.1f} h")
+        sport_cols[2].metric("Run distance", f"{row.RunKm:.1f} km")
         if row.MissingTSS:
             st.caption(f"⚠️ {int(row.MissingTSS)} completed workouts without TSS; load metrics are incomplete.")
         left,right=st.columns([1.3,1])

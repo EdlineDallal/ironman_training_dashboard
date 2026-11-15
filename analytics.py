@@ -21,8 +21,8 @@ def prepare(csv_source):
     # overwrite measured TSS in a later export or add a second workout.
     df['TSSSource'] = np.where(df['TSS'].notna(), 'TrainingPeaks export', 'Missing')
     confirmed_tss = [
-        ('2026-11-13', 'Merubah Climbs', 175.0),
-        ('2026-11-14', 'Volume Ride', 164.0),
+        ('2026-11-13', 'Merubah Climbs 3h | Israman Watts', 175.0),
+        ('2026-11-14', 'Volume Ride 3h30 | 2x30 70.3 Watts', 164.0),
     ]
     normalized_titles = df['Title'].astype('string').str.strip().str.casefold()
     for date, title, tss in confirmed_tss:

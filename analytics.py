@@ -16,6 +16,23 @@ def prepare(csv_source):
     for c in numeric:
         if c not in df: df[c]=np.nan
         df[c]=pd.to_numeric(df[c],errors='coerce')
+    # Athlete-confirmed TSS corrections for TrainingPeaks export records where TSS is blank.
+    # Only fill a missing value on an exact date, sport and title match; never
+    # overwrite measured TSS in a later export or add a second workout.
+    df['TSSSource'] = np.where(df['TSS'].notna(), 'TrainingPeaks export', 'Missing')
+    confirmed_tss = [
+        ('2026-11-13', 'Merubah Climbs', 175.0),
+        ('2026-11-14', 'Volume Ride', 164.0),
+    ]
+    normalized_titles = df['Title'].astype('string').str.strip().str.casefold()
+    for date, title, tss in confirmed_tss:
+        match = (df['WorkoutDay'].eq(pd.Timestamp(date)) &
+                 df['WorkoutType'].eq('Bike') &
+                 normalized_titles.eq(title.casefold()) &
+                 df['TSS'].isna())
+        if match.sum() == 1:
+            df.loc[match, 'TSS'] = tss
+            df.loc[match, 'TSSSource'] = 'Athlete-confirmed correction'
     df['DistanceKm'] = df['DistanceInMeters']/1000
     df['ActualHours'] = df['TimeTotalInHours'].fillna(0).clip(lower=0)
     df['WeekStart'] = df.WorkoutDay.dt.to_period('W-SAT').dt.start_time  # Sunday to Saturday
